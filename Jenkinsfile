@@ -36,7 +36,7 @@ pipeline {
                             -v "${GCP_KEY_FILE}":/gcp-key.json \
                             -e GOOGLE_APPLICATION_CREDENTIALS=/gcp-key.json \
                             google/cloud-sdk:latest \
-                            gsutil rsync -r ./data gs://${GCS_BUCKET}/data
+                            /bin/sh -c "gcloud auth activate-service-account --key-file=/gcp-key.json && gsutil rsync -r ./data gs://${GCS_BUCKET}/data"
                     """
                 }
             }
