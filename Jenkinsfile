@@ -30,11 +30,14 @@ pipeline {
         stage('Sync to GCS') {
             steps {
                 withCredentials([file(credentialsId: GCP_CREDENTIALS_ID, variable: 'GCP_KEY_FILE')]) {
-                    script {
-                        docker.image('google/cloud-sdk:latest').inside("-v ${GCP_KEY_FILE}:/gcp-key.json -e GOOGLE_APPLICATION_CREDENTIALS=/gcp-key.json") {
-                            sh 'gsutil rsync -r ./data gs://${GCS_BUCKET}/data'
-                        }
-                    }
+                    sh '''
+                        docker run --rm --workdir /app \
+                            -v "${pwd()}":/app \
+                            -v "${GCP_KEY_FILE}":/gcp-key.json \
+                            -e GOOGLE_APPLICATION_CREDENTIALS=/gcp-key.json \
+                            google/cloud-sdk:latest \
+                            gsutil rsync -r ./data gs://${GCS_BUCKET}/data
+                    '''
                 }
             }
         }
