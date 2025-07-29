@@ -1,7 +1,12 @@
 pipeline {
     agent any
 
+    tools {
+        docker 'docker'
+    }
+
     environment {
+        PATH = "/usr/local/bin:${env.PATH}"
         GCS_BUCKET = 'belayground_db'
         GCP_CREDENTIALS_ID = 'gcp_service_acct_proj_belayground'
         IMAGE_NAME = 'tweet-pipeline'
