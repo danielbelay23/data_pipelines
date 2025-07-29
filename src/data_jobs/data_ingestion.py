@@ -9,16 +9,15 @@ import time
 from datetime import datetime
 import pytz
 
-############ Variables ############
+from src.data_jobs import COOKIES_FILE, CONFIG_FILE, FOLLOWING_FILE, TWEETS_FILE, LOGGING_FILE
+
 load_dotenv()
 USERNAME = os.getenv('TWITTER_USERNAME', '')
 EMAIL = os.getenv('TWITTER_EMAIL', '')
 PASSWORD = os.getenv('TWITTER_PASSWORD', '')
 TOTP_SECRET = os.getenv('TWITTER_TOTP_SECRET', '')
-CONFIG_FILE = '../../data/raw/user_config.json'
 client = Client('en-US')
 
-############ Logging ############
 session_log = {
     'session_id': None,
     'start_time': None,
@@ -49,18 +48,18 @@ def handle_errors(default_return=None, function_name=None):
             except tuple(error_map.keys()) as e:
                 error_type, message = error_map[type(e)]
                 print(f"Error: {message}")
-                log_errors(error_type, str(e), function_name or func.__name__)
+                await log_errors(error_type, str(e), function_name or func.__name__)
                 return default_return if default_return is not None else []
             except Exception as e:
                 print(f"Error: Unexpected error: {e}")
-                log_errors('unexpected_error', str(e), function_name or func.__name__)
+                await log_errors('unexpected_error', str(e), function_name or func.__name__)
                 return default_return if default_return is not None else []
 
         return wrapper
     return decorator
 
 @handle_errors(default_return=[])
-def log_session_data(status, additional_data=None):
+async def log_session_data(status, additional_data=None):
     """Log session data to logging.json"""
     cst = pytz.timezone('US/Central')
     current_time = datetime.now(cst).isoformat()
@@ -80,16 +79,16 @@ def log_session_data(status, additional_data=None):
     if additional_data:
         log_entry.update(additional_data)
     try:
-        with open('../../data/processed/logging.json', 'r') as f:
+        with open(LOGGING_FILE, 'r') as f:
             logs = json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
         logs = []
     logs.append(log_entry)
-    with open('../../data/processed/logging.json', 'w') as f:
+    with open(LOGGING_FILE, 'w') as f:
         json.dump(logs, f, indent=2)
 
 
-def log_errors(error_type, error_message, function_name):
+async def log_errors(error_type, error_message, function_name):
     """Log an error to the session log"""
     error_entry = {
         'timestamp': datetime.now(pytz.timezone('US/Central')).isoformat(),
@@ -100,14 +99,12 @@ def log_errors(error_type, error_message, function_name):
     session_log['errors'].append(error_entry)
 
 
-############ Rate Limiting ############
 def get_last_following_run():
     """Get the timestamp of the most recent successful following collection"""
     try:
-        with open('../../data/processed/logging.json', 'r') as f:
+        with open(LOGGING_FILE, 'r') as f:
             logs = json.load(f)
 
-        # Search in reverse order for most recent following_complete with following_collected > 0
         for log_entry in reversed(logs):
             if (log_entry.get('status') == 'following_complete' and
                 log_entry.get('following_collected', 0) > 0):
@@ -121,44 +118,35 @@ def get_last_following_run():
 
 
 def should_run_following():
-    """Determine if following collection should run (2-3 times per week)"""
+    """Determine if following collection should run (2-3 times per week)
+        - if no previous run found, run it
+        - if more than 7 days (168 hours) since last run, run it
+        - if 3-7 days (72-168 hours) since last run, increase probability of running
+        - if less than 3 days (72 hours) since last run, don't run
+    """
     last_run = get_last_following_run()
-
-    # If no previous run found, run it
     if last_run is None:
         return True
 
-    # Calculate hours since last run in CST
     cst = pytz.timezone('US/Central')
     current_time = datetime.now(cst)
-
-    # Ensure both times are timezone-aware for comparison
     if last_run.tzinfo is None:
-        # Assume UTC if no timezone info, then convert to CST
         last_run = pytz.utc.localize(last_run).astimezone(cst)
     elif last_run.tzinfo != cst:
         last_run = last_run.astimezone(cst)
 
     hours_since = (current_time - last_run).total_seconds() / 3600
-
-    # Always run if more than 7 days (168 hours)
     if hours_since > 168:
         return True
 
-    # For 3-7 days (72-168 hours), increasing probability
     if hours_since >= 72:
-        probability = (hours_since - 72) / 96  # 96 = 168-72, so probability goes from 0 to 1
+        probability = (hours_since - 72) / 96
         return random.random() < probability
-
-    # Less than 3 days, don't run
     return False
 
-############ Media Extraction ############
 def extract_media_info(tweet):
     """Extract comprehensive media information from a tweet"""
     media_info = []
-
-    # Get basic media
     if hasattr(tweet, 'media') and tweet.media:
         for media in tweet.media:
             media_data = {
@@ -177,13 +165,12 @@ async def ensure_authenticated():
     """Ensure client is authenticated, using cookies or fresh login"""
     session_log['attempts'] += 1
     try:
-        client.load_cookies('../../data/raw/cookies.json')
-        return  # Success - we're authenticated
+        client.load_cookies(COOKIES_FILE)
+        return
     except Exception as e:
         print(f"Cookie loading failed: {e}; starting a new session")
-        log_errors('cookie_load_failed', str(e), 'ensure_authenticated')
+        await log_errors('cookie_load_failed', str(e), 'ensure_authenticated')
 
-    # Fall back to login
     error_map = {
         twikit_errors.AccountLocked: ('account_locked', "Account is locked - may need captcha solving"),
         twikit_errors.AccountSuspended: ('account_suspended', "Account is suspended"),
@@ -196,21 +183,20 @@ async def ensure_authenticated():
             auth_info_1=USERNAME,
             auth_info_2=EMAIL,
             password=PASSWORD,
-            cookies_file='../../data/raw/cookies.json',
+            cookies_file=COOKIES_FILE,
             totp_secret=TOTP_SECRET
         )
         print("Login successful")
     except tuple(error_map.keys()) as e:
         error_type, message = error_map[type(e)]
         print(f"Error: {message}")
-        log_errors(error_type, str(e), 'ensure_authenticated')
+        await log_errors(error_type, str(e), 'ensure_authenticated')
         raise
     except Exception as e:
         print(f"Error: Login failed: {e}")
-        log_errors('login_failed', str(e), 'ensure_authenticated')
+        await log_errors('login_failed', str(e), 'ensure_authenticated')
         raise
 
-# New function to get user ID, caching it to a file to save an API call.
 async def get_my_user_id():
     """Gets the current user's ID, caching it to avoid repeated API calls."""
     try:
@@ -219,9 +205,9 @@ async def get_my_user_id():
             if 'user_id' in config:
                 return config['user_id']
     except (FileNotFoundError, json.JSONDecodeError):
-        pass  # Config file doesn't exist or is invalid, so we'll fetch the ID.
+        pass
 
-    print("User ID not found in cache, fetching from API...")
+    print("no user ID in cache, gettin' from API")
     me = await client.get_user_by_screen_name(USERNAME)
     session_log['calls'] += 1
     if me:
@@ -236,20 +222,18 @@ async def get_my_following():
     local_calls = 0
 
     try:
-        with open('../../data/raw/following.json', 'r') as f:
+        with open(FOLLOWING_FILE, 'r') as f:
             existing_data = json.load(f)
             existing_ids = {user['id'] for user in existing_data}
     except (FileNotFoundError, json.JSONDecodeError):
         existing_data = []
         existing_ids = set()
 
-    # Use the new caching function to get user ID
     my_user_id = await get_my_user_id()
     if not my_user_id:
-        print("Could not retrieve user ID. Aborting following check.")
+        print("no user ID found, aborting following check")
         return []
 
-    # CHANGE: Increased count from 40 to 200 to fetch more users per API call.
     following = await client.get_user_following(user_id=my_user_id, count=200)
     local_calls += 1
     session_log['calls'] += 1
@@ -291,18 +275,18 @@ async def get_my_following():
             local_calls += 1
             session_log['calls'] += 1
         except twikit_errors.TooManyRequests as e:
-            print("Rate limited - waiting 60 seconds...")
-            log_errors('rate_limited', str(e), 'get_my_following')
+            print("rate limited, sleep for 60 seconds")
+            await log_errors('rate_limited', str(e), 'get_my_following')
             await asyncio.sleep(60)
             continue
         except twikit_errors.ServerError as e:
-            print("Server error - retrying in 30 seconds...")
-            log_errors('server_error', str(e), 'get_my_following')
+            print("server error, sleep for 30 seconds")
+            await log_errors('server_error', str(e), 'get_my_following')
             await asyncio.sleep(30)
             continue
 
     all_data = existing_data + new_following
-    with open('../../data/raw/following.json', 'w') as f:
+    with open(FOLLOWING_FILE, 'w') as f:
         json.dump(all_data, f, indent=2)
 
     session_log['new_following_count'] = len(new_following)
@@ -319,7 +303,7 @@ async def get_my_feed():
     current_date = datetime.now(cst).strftime('%Y-%m-%d')
 
     try:
-        with open('../../data/raw/tweets.json', 'r') as f:
+        with open(TWEETS_FILE, 'r') as f:
             existing_data = json.load(f)
             if current_date in existing_data:
                 existing_tweets = {tweet['id'] for tweet in existing_data[current_date]}
@@ -332,7 +316,7 @@ async def get_my_feed():
 
     all_tweets = []
     target_tweets = 200
-    session_duration = 3600  # 1 hour in seconds
+    session_duration = 3600  #i.e. 1 hour
     start_time = time.time()
 
     print(f"tryna get {target_tweets} tweets over {session_duration/60} mins")
@@ -343,8 +327,8 @@ async def get_my_feed():
 
     while len(all_tweets) < target_tweets and (time.time() - start_time) < session_duration:
         try:
-            # Process current page of tweets
             batch_tweets = []
+            # batching tweets logic: expand to 200 tweets per page, then pull tweets
             for tweet in timeline:
                 if tweet.id not in existing_tweets:
                     main_media = extract_media_info(tweet)
@@ -381,15 +365,15 @@ async def get_my_feed():
             session_log['tweets_collected'] = len(all_tweets)
             print(f"pulled {len(batch_tweets)} new tweets. total tweets: {len(all_tweets)}/{target_tweets}")
             existing_data[current_date].extend(batch_tweets)
-            with open('../../data/raw/tweets.json', 'w') as f:
+            with open(TWEETS_FILE, 'w') as f:
                 json.dump(existing_data, f, indent=2)
 
-            # Check for next page
+            # check for next page
             if not (hasattr(timeline, 'next_cursor') and timeline.next_cursor):
                 print("no more tweets available")
                 break
 
-            # Wait and get next page
+            # wait and get next page
             if len(all_tweets) < target_tweets and (time.time() - start_time) < session_duration:
                 wait_time = random.randint(5, 30)
                 print(f"waiting {wait_time}secs before next batch...")
@@ -399,24 +383,24 @@ async def get_my_feed():
                 session_log['calls'] += 1
 
         except twikit_errors.TooManyRequests as e:
-            print("rate limit error - waiting 5 mins")
-            log_errors('rate_limited', str(e), 'get_my_feed')
+            print("rate limit error, sleep for 5 mins")
+            await log_errors('rate_limited', str(e), 'get_my_feed')
             await asyncio.sleep(300)
         except twikit_errors.ServerError as e:
-            print("server error - waiting 30 secs")
-            log_errors('server_error', str(e), 'get_my_feed')
+            print("server error, sleep for 30 secs")
+            await log_errors('server_error', str(e), 'get_my_feed')
             await asyncio.sleep(30)
         except twikit_errors.BadRequest as e:
             print(f"bad request: {e}")
-            log_errors('bad_request', str(e), 'get_my_feed')
+            await log_errors('bad_request', str(e), 'get_my_feed')
             break
         except twikit_errors.Forbidden as e:
             print("access forbidden to timeline")
-            log_errors('forbidden', str(e), 'get_my_feed')
+            await log_errors('forbidden', str(e), 'get_my_feed')
             break
         except Exception as e:
             print(f"unexpected error: {e}")
-            log_errors('unexpected_error', str(e), 'get_my_feed')
+            await log_errors('unexpected_error', str(e), 'get_my_feed')
             await asyncio.sleep(10)
 
     elapsed_time = time.time() - start_time
@@ -432,31 +416,29 @@ async def main_runner():
     session_log['session_id'] = f"session_{int(time.time())}"
     session_log['start_time'] = datetime.now(cst).isoformat()
     print(f"starting session: {session_log['session_id']}")
-    log_session_data('started')
+    await log_session_data('started')
 
-    # Check if following collection should run
     if should_run_following():
         print("running following collection...")
         following_result = await get_my_following()
-        log_session_data('following_complete', {
+        await log_session_data('following_complete', {
             'following_collected': len(following_result) if following_result else 0
         })
     else:
         print("skipping following collection (ran recently)")
         following_result = []
         session_log['new_following_count'] = 0
-        log_session_data('following_skipped', {
+        await log_session_data('following_skipped', {
             'reason': 'recent_run',
             'following_collected': 0
         })
 
-    # Always run tweet collection
     tweets_result = await get_my_feed()
-    log_session_data('tweets_complete', {
+    await log_session_data('tweets_complete', {
         'tweets_collected': len(tweets_result) if tweets_result else 0
     })
 
-    log_session_data('completed', {
+    await log_session_data('completed', {
         'final_following_count': len(following_result) if following_result else 0,
         'final_tweets_count': len(tweets_result) if tweets_result else 0,
         'success': True
