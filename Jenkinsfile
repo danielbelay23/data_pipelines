@@ -1,9 +1,7 @@
 pipeline {
     agent any
 
-    tools {
-        dockerTool 'docker'
-    }
+    
 
     environment {
         PATH = "/usr/local/bin:${env.PATH}"
