@@ -1,7 +1,92 @@
 import os
 import sqlite3
 import json
-from src.data_jobs import PROCESSED_DIR, FOLLOWING_FILE, TWEETS_FILE, COOKIES_FILE
+import tempfile
+from google.cloud import storage, bigquery
+from google.api_core.exceptions import NotFound
+
+# --- Configuration ---
+# GCP Project and GCS Bucket details (read from environment variables)
+GCP_PROJECT_ID = os.getenv('GCP_PROJECT_ID', 'belayground-467323')
+GCS_BUCKET_NAME = os.getenv('GCS_BUCKET_NAME', 'belayground_db')
+
+# BigQuery details (read from environment variables)
+BIGQUERY_DATASET_ID = os.getenv('BIGQUERY_DATASET_ID', 'twitter_data')
+
+# Initialize Google Cloud clients
+storage_client = storage.Client(project=GCP_PROJECT_ID)
+bq_client = bigquery.Client(project=GCP_PROJECT_ID)
+
+# --- GCS and BigQuery Functions ---
+
+def download_from_gcs(source_blob_name, destination_file_name):
+    """Downloads a file from GCS to a local path."""
+    try:
+        bucket = storage_client.bucket(GCS_BUCKET_NAME)
+        blob = bucket.blob(source_blob_name)
+        blob.download_to_filename(destination_file_name)
+        print(f"Successfully downloaded gs://{GCS_BUCKET_NAME}/{source_blob_name} to {destination_file_name}")
+        return True
+    except NotFound:
+        print(f"Error: File not found in GCS: gs://{GCS_BUCKET_NAME}/{source_blob_name}")
+        return False
+    except Exception as e:
+        print(f"An error occurred during GCS download: {e}")
+        return False
+
+def load_db_to_bigquery(db_path, table_name):
+    """Loads data from a SQLite database table into a BigQuery table."""
+    print(f"Starting BigQuery load for table '{table_name}' from '{db_path}'...")
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    # Get all data from the SQLite table
+    cursor.execute(f"SELECT * FROM {table_name}")
+    rows = cursor.fetchall()
+    if not rows:
+        print(f"No data found in SQLite table '{table_name}'. Skipping BigQuery load.")
+        return
+
+    # Get column names and dynamically create BigQuery schema
+    cursor.execute(f"PRAGMA table_info({table_name})")
+    db_schema = cursor.fetchall()
+    bq_schema = [bigquery.SchemaField(col[1], 'STRING') for col in db_schema]
+
+    # Prepare data for BigQuery (list of dictionaries)
+    column_names = [col[1] for col in db_schema]
+    data_to_load = [dict(zip(column_names, row)) for row in rows]
+
+    # Configure the BigQuery job
+    dataset_ref = bq_client.dataset(BIGQUERY_DATASET_ID)
+    table_ref = dataset_ref.table(table_name)
+    job_config = bigquery.LoadJobConfig(
+        schema=bq_schema,
+        write_disposition=bigquery.WriteDisposition.WRITE_TRUNCATE,  # Overwrite the table with new data
+    )
+
+    try:
+        # Ensure the dataset exists
+        bq_client.create_dataset(dataset_ref, exists_ok=True)
+
+        # Start the load job
+        load_job = bq_client.load_table_from_json(
+            data_to_load,
+            table_ref,
+            job_config=job_config
+        )
+        print(f" -> Starting BigQuery load job {load_job.job_id} for table '{table_name}'")
+
+        load_job.result()  # Wait for the job to complete
+
+        destination_table = bq_client.get_table(table_ref)
+        print(f" -> Successfully loaded {destination_table.num_rows} rows into BigQuery table '{table_name}'.")
+
+    except Exception as e:
+        print(f"An error occurred during the BigQuery load for table '{table_name}': {e}")
+    finally:
+        conn.close()
+
+# --- Existing SQLite Functions (Unchanged) ---
 
 def create_connection(db_file):
     """create a database connection to a sqlite database."""
@@ -154,47 +239,66 @@ def ingest_data(conn, table_name, all_records, primary_key, static_pk_value=None
         print("no new or updated records to process.")
     print("-" * (len(table_name) + 28))
 
+# --- Main Orchestrator ---
+
 def main():
-    """main function to run the database operations for all configured tables."""
+    """Main function to download from GCS, process into SQLite, and load to BigQuery."""
+    # Define the GCS source path for raw data
+    gcs_raw_data_path = 'data/raw'
+
     tables_to_process = [
         {
             "table_name": "following",
-            "json_file": FOLLOWING_FILE,
+            "gcs_source_file": f"{gcs_raw_data_path}/following.json",
             "primary_key": "id"
         },
         {
             "table_name": "tweets",
-            "json_file": TWEETS_FILE,
+            "gcs_source_file": f"{gcs_raw_data_path}/tweets.json",
             "primary_key": "id"
         },
         {
             "table_name": "cookies",
-            "json_file": COOKIES_FILE,
+            "gcs_source_file": f"{gcs_raw_data_path}/cookies.json",
             "primary_key": "session_id",
             "static_pk_value": "active_session"
         }
     ]
 
-    for config in tables_to_process:
-        table_name = config["table_name"]
-        json_file = config["json_file"]
-        primary_key = config["primary_key"]
-        static_pk_value = config.get("static_pk_value")
-        database_file = os.path.join(PROCESSED_DIR, f"{table_name}.db")
-        print(f"\nprocessing '{json_file}' into database '{database_file}'...")
+    # Use a temporary directory to store downloaded and generated files
+    with tempfile.TemporaryDirectory() as temp_dir:
+        for config in tables_to_process:
+            table_name = config["table_name"]
+            gcs_source_file = config["gcs_source_file"]
+            primary_key = config["primary_key"]
+            static_pk_value = config.get("static_pk_value")
 
-        conn = create_connection(database_file)
-        if conn is not None:
-            create_table(conn, table_name, primary_key)
-            all_records = get_all_records_from_json(json_file)
-            if all_records:
-                sync_schema(conn, table_name, all_records, primary_key, static_pk_value)
-                ingest_data(conn, table_name, all_records, primary_key, static_pk_value)
-            conn.close()
-            print(f"database '{database_file}' complete. connection closed.")
-        else:
-            print(f"db connection failed for {table_name}")
-    print("\nall db sync'd successfully.")
+            local_json_path = os.path.join(temp_dir, os.path.basename(gcs_source_file))
+            local_db_path = os.path.join(temp_dir, f"{table_name}.db")
+
+            print(f"\n--- Processing table: {table_name} ---")
+
+            # 1. Download from GCS
+            if not download_from_gcs(gcs_source_file, local_json_path):
+                continue # Skip to next table if download fails
+
+            # 2. Process into local SQLite DB
+            conn = create_connection(local_db_path)
+            if conn is not None:
+                create_table(conn, table_name, primary_key)
+                all_records = get_all_records_from_json(local_json_path)
+                if all_records:
+                    sync_schema(conn, table_name, all_records, primary_key, static_pk_value)
+                    ingest_data(conn, table_name, all_records, primary_key, static_pk_value)
+                conn.close()
+                print(f"Local database '{local_db_path}' created successfully.")
+
+                # 3. Load the generated DB to BigQuery
+                load_db_to_bigquery(local_db_path, table_name)
+            else:
+                print(f"DB connection failed for {table_name}")
+
+    print("\n--- All database operations complete. ---")
 
 if __name__ == '__main__':
     main()

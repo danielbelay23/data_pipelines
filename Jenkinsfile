@@ -39,5 +39,17 @@ pipeline {
                 }
             }
         }
+
+        stage('Process and Load to BigQuery') {
+            steps {
+                script {
+                    docker.image(IMAGE_NAME).inside("-e GOOGLE_APPLICATION_CREDENTIALS=/gcp-key.json") {
+                        withCredentials([file(credentialsId: GCP_CREDENTIALS_ID, variable: 'GCP_KEY_FILE')]) {
+                            sh 'python src/data_jobs/db_manager.py'
+                        }
+                    }
+                }
+            }
+        }
     }
 }
