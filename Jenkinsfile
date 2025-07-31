@@ -42,12 +42,14 @@ pipeline {
 
         stage('process and load to BQ') {
             steps {
-                script {
-                    docker.image(IMAGE_NAME).inside("-e GOOGLE_APPLICATION_CREDENTIALS=/gcp-key.json") {
-                        withCredentials([file(credentialsId: GCP_CREDENTIALS_ID, variable: 'GCP_KEY_FILE')]) {
-                            sh 'python src/data_jobs/db_manager.py'
-                        }
-                    }
+                withCredentials([file(credentialsId: GCP_CREDENTIALS_ID, variable: 'GCP_KEY_FILE')]) {
+                    sh """
+                        docker run --rm --workdir /app \
+                            -v "${GCP_KEY_FILE}":/gcp-key.json \
+                            -e GOOGLE_APPLICATION_CREDENTIALS=/gcp-key.json \
+                            ${IMAGE_NAME} \
+                            python src/data_jobs/db_manager.py
+                    """
                 }
             }
         }
