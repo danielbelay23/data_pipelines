@@ -17,7 +17,7 @@ pipeline {
             }
         }
 
-        stage('Run Application') {
+        stage('run application') {
             steps {
                 script {
                     docker.image(IMAGE_NAME).run()
@@ -25,7 +25,7 @@ pipeline {
             }
         }
 
-        stage('Sync to GCS') {
+        stage('sync to GCS') {
             steps {
                 withCredentials([file(credentialsId: GCP_CREDENTIALS_ID, variable: 'GCP_KEY_FILE')]) {
                     sh """
@@ -40,7 +40,7 @@ pipeline {
             }
         }
 
-        stage('Process and Load to BigQuery') {
+        stage('process and load to BQ') {
             steps {
                 script {
                     docker.image(IMAGE_NAME).inside("-e GOOGLE_APPLICATION_CREDENTIALS=/gcp-key.json") {

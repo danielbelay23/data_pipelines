@@ -4,23 +4,13 @@ import json
 import tempfile
 from google.cloud import storage, bigquery
 from google.api_core.exceptions import NotFound
+from data_jobs import GCP_PROJECT_ID, GCS_BUCKET_NAME, BIGQUERY_DATASET_ID
 
-# --- Configuration ---
-# GCP Project and GCS Bucket details (read from environment variables)
-GCP_PROJECT_ID = os.getenv('GCP_PROJECT_ID', 'belayground-467323')
-GCS_BUCKET_NAME = os.getenv('GCS_BUCKET_NAME', 'belayground_db')
-
-# BigQuery details (read from environment variables)
-BIGQUERY_DATASET_ID = os.getenv('BIGQUERY_DATASET_ID', 'twitter_data')
-
-# Initialize Google Cloud clients
 storage_client = storage.Client(project=GCP_PROJECT_ID)
 bq_client = bigquery.Client(project=GCP_PROJECT_ID)
 
-# --- GCS and BigQuery Functions ---
-
 def download_from_gcs(source_blob_name, destination_file_name):
-    """Downloads a file from GCS to a local path."""
+    """downloads a file from GCS to a local path."""
     try:
         bucket = storage_client.bucket(GCS_BUCKET_NAME)
         blob = bucket.blob(source_blob_name)
@@ -34,59 +24,47 @@ def download_from_gcs(source_blob_name, destination_file_name):
         print(f"An error occurred during GCS download: {e}")
         return False
 
-def load_db_to_bigquery(db_path, table_name):
-    """Loads data from a SQLite database table into a BigQuery table."""
-    print(f"Starting BigQuery load for table '{table_name}' from '{db_path}'...")
+def load_db_to_bigquery(db_path, table_name, dataset_id):
+    """loads data from a SQLite database table into a BigQuery table."""
+    print(f"starting BQ load for '{table_name}' from '{db_path}'")
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-
-    # Get all data from the SQLite table
     cursor.execute(f"SELECT * FROM {table_name}")
     rows = cursor.fetchall()
     if not rows:
-        print(f"No data found in SQLite table '{table_name}'. Skipping BigQuery load.")
+        print(f"no data found in SQLite table '{table_name}'. skipping BQ load")
         return
 
-    # Get column names and dynamically create BigQuery schema
     cursor.execute(f"PRAGMA table_info({table_name})")
     db_schema = cursor.fetchall()
     bq_schema = [bigquery.SchemaField(col[1], 'STRING') for col in db_schema]
-
-    # Prepare data for BigQuery (list of dictionaries)
     column_names = [col[1] for col in db_schema]
     data_to_load = [dict(zip(column_names, row)) for row in rows]
-
-    # Configure the BigQuery job
-    dataset_ref = bq_client.dataset(BIGQUERY_DATASET_ID)
+    dataset_ref = bq_client.dataset(dataset_id)
     table_ref = dataset_ref.table(table_name)
     job_config = bigquery.LoadJobConfig(
         schema=bq_schema,
-        write_disposition=bigquery.WriteDisposition.WRITE_TRUNCATE,  # Overwrite the table with new data
+        write_disposition=bigquery.WriteDisposition.WRITE_TRUNCATE,
     )
 
     try:
-        # Ensure the dataset exists
         bq_client.create_dataset(dataset_ref, exists_ok=True)
-
-        # Start the load job
         load_job = bq_client.load_table_from_json(
             data_to_load,
             table_ref,
             job_config=job_config
         )
-        print(f" -> Starting BigQuery load job {load_job.job_id} for table '{table_name}'")
+        print(f" -> starting BQ load job {load_job.job_id} for table '{table_name}'")
 
-        load_job.result()  # Wait for the job to complete
-
+        load_job.result()
         destination_table = bq_client.get_table(table_ref)
-        print(f" -> Successfully loaded {destination_table.num_rows} rows into BigQuery table '{table_name}'.")
+        print(f" -> successfully loaded {destination_table.num_rows} rows into '{table_name}'")
 
     except Exception as e:
-        print(f"An error occurred during the BigQuery load for table '{table_name}': {e}")
+        print(f"an error occurred during the BQ load for table '{table_name}': {e}")
     finally:
         conn.close()
 
-# --- Existing SQLite Functions (Unchanged) ---
 
 def create_connection(db_file):
     """create a database connection to a sqlite database."""
@@ -144,11 +122,10 @@ def sync_schema(conn, table_name, all_records, primary_key, static_pk_value=None
     to the specified table if they don't already exist.
     """
     if not all_records:
-        print(f"no records found to sync schema for table '{table_name}'.")
+        print(f"no records found to sync schema for table '{table_name}'")
         return
 
     c = conn.cursor()
-
     json_keys = set()
     for item in all_records:
         json_keys.update(item.keys())
@@ -158,7 +135,6 @@ def sync_schema(conn, table_name, all_records, primary_key, static_pk_value=None
 
     c.execute(f"PRAGMA table_info({table_name})")
     db_columns = {row[1] for row in c.fetchall()}
-
     new_columns = json_keys - db_columns
 
     if new_columns:
@@ -176,7 +152,7 @@ def sync_schema(conn, table_name, all_records, primary_key, static_pk_value=None
 def ingest_data(conn, table_name, all_records, primary_key, static_pk_value=None):
     """read data from a list of records and insert or update them in the specified table."""
     if not all_records:
-        print(f"No records to ingest for table '{table_name}'.")
+        print(f"no records to ingest for table '{table_name}'")
         return
 
     c = conn.cursor()
@@ -214,10 +190,8 @@ def ingest_data(conn, table_name, all_records, primary_key, static_pk_value=None
                 print(f"error inserting record {pk_value} into {table_name}: {e}")
         else:
             update_keys = [k for k in sanitized_record.keys() if k != primary_key]
-
             if not update_keys:
                 continue
-
             update_clause = ', '.join([f"{key} = ?" for key in update_keys])
             update_values = [sanitized_record[k] for k in update_keys] + [pk_value]
 
@@ -229,23 +203,19 @@ def ingest_data(conn, table_name, all_records, primary_key, static_pk_value=None
                 print(f"error updating record {pk_value} in {table_name}: {e}")
 
     conn.commit()
-
-    print(f"--- ingestion summary for '{table_name}' ---")
+    print(f"ingestion summary for '{table_name}'")
     if new_count > 0:
-        print(f"successfully added {new_count} new records.")
+        print(f"successfully added {new_count} new records")
     if updated_count > 0:
-        print(f"successfully updated {updated_count} existing records.")
+        print(f"successfully updated {updated_count} existing records")
     if new_count == 0 and updated_count == 0:
-        print("no new or updated records to process.")
+        print("no new or updated records to process")
     print("-" * (len(table_name) + 28))
 
-# --- Main Orchestrator ---
 
 def main():
-    """Main function to download from GCS, process into SQLite, and load to BigQuery."""
-    # Define the GCS source path for raw data
+    """main function to download from GCS, process into SQLite, and load to BigQuery."""
     gcs_raw_data_path = 'data/raw'
-
     tables_to_process = [
         {
             "table_name": "following",
@@ -265,24 +235,19 @@ def main():
         }
     ]
 
-    # Use a temporary directory to store downloaded and generated files
     with tempfile.TemporaryDirectory() as temp_dir:
         for config in tables_to_process:
             table_name = config["table_name"]
             gcs_source_file = config["gcs_source_file"]
             primary_key = config["primary_key"]
             static_pk_value = config.get("static_pk_value")
-
             local_json_path = os.path.join(temp_dir, os.path.basename(gcs_source_file))
             local_db_path = os.path.join(temp_dir, f"{table_name}.db")
 
-            print(f"\n--- Processing table: {table_name} ---")
-
-            # 1. Download from GCS
+            print(f"\n processing table '{table_name}'")
             if not download_from_gcs(gcs_source_file, local_json_path):
-                continue # Skip to next table if download fails
+                continue
 
-            # 2. Process into local SQLite DB
             conn = create_connection(local_db_path)
             if conn is not None:
                 create_table(conn, table_name, primary_key)
@@ -291,14 +256,12 @@ def main():
                     sync_schema(conn, table_name, all_records, primary_key, static_pk_value)
                     ingest_data(conn, table_name, all_records, primary_key, static_pk_value)
                 conn.close()
-                print(f"Local database '{local_db_path}' created successfully.")
-
-                # 3. Load the generated DB to BigQuery
-                load_db_to_bigquery(local_db_path, table_name)
+                print(f"local table '{local_db_path}' created successfully")
+                load_db_to_bigquery(local_db_path, table_name, BIGQUERY_DATASET_ID)
             else:
                 print(f"DB connection failed for {table_name}")
 
-    print("\n--- All database operations complete. ---")
+    print("\n DB sync complete")
 
 if __name__ == '__main__':
     main()

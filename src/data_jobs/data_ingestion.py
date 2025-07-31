@@ -8,8 +8,7 @@ import random
 import time
 from datetime import datetime
 import pytz
-
-from src.data_jobs import COOKIES_FILE, CONFIG_FILE, FOLLOWING_FILE, TWEETS_FILE, LOGGING_FILE
+from data_jobs import COOKIES_FILE, CONFIG_FILE, FOLLOWING_FILE, TWEETS_FILE, LOGGING_FILE
 
 load_dotenv()
 USERNAME = os.getenv('TWITTER_USERNAME', '')
