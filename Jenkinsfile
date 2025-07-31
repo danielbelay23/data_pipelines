@@ -17,7 +17,7 @@ pipeline {
             }
         }
 
-        stage('Run Application') {
+        stage('run application') {
             steps {
                 script {
                     docker.image(IMAGE_NAME).run()
@@ -25,7 +25,7 @@ pipeline {
             }
         }
 
-        stage('Sync to GCS') {
+        stage('sync to GCS') {
             steps {
                 withCredentials([file(credentialsId: GCP_CREDENTIALS_ID, variable: 'GCP_KEY_FILE')]) {
                     sh """
@@ -36,6 +36,18 @@ pipeline {
                             google/cloud-sdk:latest \
                             /bin/sh -c "gcloud auth activate-service-account --key-file=/gcp-key.json && gsutil rsync -r ./data gs://${GCS_BUCKET}/data"
                     """
+                }
+            }
+        }
+
+        stage('process and load to BQ') {
+            steps {
+                script {
+                    docker.image(IMAGE_NAME).inside("-e GOOGLE_APPLICATION_CREDENTIALS=/gcp-key.json") {
+                        withCredentials([file(credentialsId: GCP_CREDENTIALS_ID, variable: 'GCP_KEY_FILE')]) {
+                            sh 'python src/data_jobs/db_manager.py'
+                        }
+                    }
                 }
             }
         }

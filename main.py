@@ -14,7 +14,7 @@ async def run_full_pipeline():
     print("data ingested successfully")
     db_main()
     print("db sync'd successfully")
-    print("---full pipeline is done---")
+    print("***** full pipeline is done *****")
 
 def main():
     """

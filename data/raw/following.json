@@ -1,0 +1,296 @@
+[
+  {
+    "username": "cursor_ai",
+    "url": "https://twitter.com/cursor_ai",
+    "name": "Cursor",
+    "description": "The AI Code Editor",
+    "id": "1695890961094909952"
+  },
+  {
+    "username": "LinusEkenstam",
+    "url": "https://twitter.com/LinusEkenstam",
+    "name": "Linus Ekenstam",
+    "description": "AI Evangelist & Optimist. Latest AI News, Trends and learn how to use AI tools to augment your abilities.",
+    "id": "3888491"
+  },
+  {
+    "username": "OpenAIDevs",
+    "url": "https://twitter.com/OpenAIDevs",
+    "name": "OpenAI Developers",
+    "description": "Updates for developers building with the OpenAI Platform and API \u2022 Service status: https://t.co/kZwnwdYqOS \u2022 Support: https://t.co/qCi6M5ESZU",
+    "id": "1633874951508721686"
+  },
+  {
+    "username": "AnthropicAI",
+    "url": "https://twitter.com/AnthropicAI",
+    "name": "Anthropic",
+    "description": "We're an AI safety and research company that builds reliable, interpretable, and steerable AI systems. Talk to our AI assistant Claude at https://t.co/aRbQ97tMeF.",
+    "id": "1353836358901501952"
+  },
+  {
+    "username": "GeminiApp",
+    "url": "https://twitter.com/GeminiApp",
+    "name": "Google Gemini App",
+    "description": "We're the Gemini app team, your inside source for product news, tips & tricks, and unfiltered enthusiasm.",
+    "id": "1806359170830172162"
+  },
+  {
+    "username": "huggingface",
+    "url": "https://twitter.com/huggingface",
+    "name": "Hugging Face",
+    "description": "The AI community building the future. https://t.co/VkRPD0Vclr",
+    "id": "778764142412984320"
+  },
+  {
+    "username": "AIatMeta",
+    "url": "https://twitter.com/AIatMeta",
+    "name": "AI at Meta",
+    "description": "Together with the AI community, we are pushing the boundaries of what\u2019s possible through open science to create a more connected world.",
+    "id": "1034844617261248512"
+  },
+  {
+    "username": "AlexReibman",
+    "url": "https://twitter.com/AlexReibman",
+    "name": "Alex Reibman \ud83d\udd87\ufe0f",
+    "description": "Co-founder/CEO @agentopsai \nVibes @cerebral_valley \nChecks https://t.co/7GjxnkUotw\nHackathon reporting \ud83d\udd76\ufe0f \ud83d\udd87\ufe0f",
+    "id": "999588600571400192"
+  },
+  {
+    "username": "AgentOpsAI",
+    "url": "https://twitter.com/AgentOpsAI",
+    "name": "AgentOps \ud83d\udd87\ufe0f",
+    "description": "Making the next 1 billion agents fast, safe, and reliable. Agents suck. We're fixing that. (DMs open) https://t.co/KzRvFOijzL Agent Consulting: https://t.co/LRCXTHyXe2",
+    "id": "1717013899617468416"
+  },
+  {
+    "username": "cerebral_valley",
+    "url": "https://twitter.com/cerebral_valley",
+    "name": "Cerebral Valley",
+    "description": "Fine-tuning vibes",
+    "id": "1623475008399089667"
+  },
+  {
+    "username": "MetaforDevs",
+    "url": "https://twitter.com/MetaforDevs",
+    "name": "Meta for Developers",
+    "description": "Build the future and scale with us by leveraging advanced tools and technologies, from AI to MR.",
+    "id": "63359297"
+  },
+  {
+    "username": "OpenAINewsroom",
+    "url": "https://twitter.com/OpenAINewsroom",
+    "name": "OpenAI Newsroom",
+    "description": "The official newsroom for @OpenAI. Tweets are on the record. \n\nIf you like this account, you\u2019ll love our blog: https://t.co/nEYf8Iq3C0",
+    "id": "1803847768781524992"
+  },
+  {
+    "username": "OpenAI",
+    "url": "https://twitter.com/OpenAI",
+    "name": "OpenAI",
+    "description": "OpenAI\u2019s mission is to ensure that artificial general intelligence benefits all of humanity. We\u2019re hiring: https://t.co/dJGr6Lg202",
+    "id": "4398626122"
+  },
+  {
+    "username": "GoogleDeepMind",
+    "url": "https://twitter.com/GoogleDeepMind",
+    "name": "Google DeepMind",
+    "description": "We\u2019re a team of scientists, engineers, ethicists and more, committed to solving intelligence, to advance science and benefit humanity.",
+    "id": "4783690002"
+  },
+  {
+    "username": "demishassabis",
+    "url": "https://twitter.com/demishassabis",
+    "name": "Demis Hassabis",
+    "description": "Nobel Laureate. Co-Founder & CEO @GoogleDeepMind - working on AGI. Solving disease @IsomorphicLabs. Trying to understand the fundamental nature of reality.",
+    "id": "1482581556"
+  },
+  {
+    "username": "PyTorch",
+    "url": "https://twitter.com/PyTorch",
+    "name": "PyTorch",
+    "description": "Tensors and neural networks in Python with strong hardware acceleration. PyTorch is an open source project at the Linux Foundation. #PyTorchFoundation",
+    "id": "776585502606721024"
+  },
+  {
+    "username": "pydantic",
+    "url": "https://twitter.com/pydantic",
+    "name": "Pydantic",
+    "description": "First we build Pydantic, next Pydantic Logfire - uncomplicated observability",
+    "id": "1558361301524652032"
+  },
+  {
+    "username": "FastAPI",
+    "url": "https://twitter.com/FastAPI",
+    "name": "FastAPI",
+    "description": "FastAPI framework, high performance, easy to learn, fast to code, ready for production. \ud83d\ude80\n\nWeb APIs with Python type hints. \ud83d\udc0d\n\nBy @tiangolo \ud83e\udd13",
+    "id": "1300893841352986630"
+  },
+  {
+    "username": "pycoders",
+    "url": "https://twitter.com/pycoders",
+    "name": "PyCoder\u2019s Weekly",
+    "description": "\ud83d\udc0d\ud83d\udcf0\u00a0Your weekly dose of all things Python! The best articles, projects, and events curated for you.",
+    "id": "484757080"
+  },
+  {
+    "username": "Snowflake",
+    "url": "https://twitter.com/Snowflake",
+    "name": "Snowflake",
+    "description": "Snowflake delivers the #AIDataCloud to help leading organizations share data, build applications and power their business with AI.",
+    "id": "2539962439"
+  },
+  {
+    "username": "getdbt",
+    "url": "https://twitter.com/getdbt",
+    "name": "dbt",
+    "description": "\ud83c\udfd7 Your entire analytics engineering workflow \n\n\ud83e\uddea Built by @dbt_labs\n\nJoin us at Coalesce '25 https://t.co/vrhjns7uKA",
+    "id": "1112832806282055682"
+  },
+  {
+    "username": "dbt_labs",
+    "url": "https://twitter.com/dbt_labs",
+    "name": "dbt Labs",
+    "description": "The creators and maintainers of @getdbt\n\nJoin us at Coalesce '25 https://t.co/fqGB7ELR4q",
+    "id": "717346720460443648"
+  },
+  {
+    "username": "fivetran",
+    "url": "https://twitter.com/fivetran",
+    "name": "Fivetran",
+    "description": "Fivetran, the industry leader in data movement, powers real-time analytics, database replication, AI workflows and cloud migrations.",
+    "id": "905382554"
+  },
+  {
+    "username": "duckdb",
+    "url": "https://twitter.com/duckdb",
+    "name": "DuckDB",
+    "description": "DuckDB is an analytical in-process SQL database management system. \"DuckDB\" and the DuckDB logo are registered trademarks of the DuckDB Foundation.",
+    "id": "1124003061540753408"
+  },
+  {
+    "username": "DataTalksClub",
+    "url": "https://twitter.com/DataTalksClub",
+    "name": "DataTalksClub",
+    "description": "The place to talk about data.\n\nDo you want to talk about data science, machine learning, and engineering?\n\nJoin our Slack community and attend weekly events!",
+    "id": "1321497266474143751"
+  },
+  {
+    "username": "googledevs",
+    "url": "https://twitter.com/googledevs",
+    "name": "Google for Developers",
+    "description": "Discover the latest developer tools, resources, events, and announcements to help you build smarter, ship faster. \ud83d\ude80",
+    "id": "50090898"
+  },
+  {
+    "username": "code",
+    "url": "https://twitter.com/code",
+    "name": "Visual Studio Code",
+    "description": "The open source AI code editor",
+    "id": "3167734591"
+  },
+  {
+    "username": "github",
+    "url": "https://twitter.com/github",
+    "name": "GitHub",
+    "description": "The AI-powered developer platform to build, scale, and deliver secure software.",
+    "id": "13334762"
+  },
+  {
+    "username": "TDataScience",
+    "url": "https://twitter.com/TDataScience",
+    "name": "Towards Data Science",
+    "description": "The world's leading publication for data science and artificial intelligence professionals.\n\nSubmit an Article \u270d\ufe0f https://t.co/57pIMegK1o",
+    "id": "788898706586275840"
+  },
+  {
+    "username": "realpython",
+    "url": "https://twitter.com/realpython",
+    "name": "Real Python",
+    "description": "Online #Python Training & Expert Community: Tutorials, Video Courses, Books, Quizzes...and More! Join 1M+ Pythonistas at https://t.co/VpjtGxdL7J",
+    "id": "745911914"
+  },
+  {
+    "username": "DataCamp",
+    "url": "https://twitter.com/DataCamp",
+    "name": "DataCamp",
+    "description": "Download The DataCamp Data & AI Literacy Report 2025: https://t.co/rDanM5pZMu",
+    "id": "1568606814"
+  },
+  {
+    "username": "databricks",
+    "url": "https://twitter.com/databricks",
+    "name": "Databricks",
+    "description": "Databricks is the data and AI company, helping data + AI teams solve the world\u2019s toughest problems.",
+    "id": "1562518867"
+  },
+  {
+    "username": "rasbt",
+    "url": "https://twitter.com/rasbt",
+    "name": "Sebastian Raschka",
+    "description": "ML/AI researcher & former stats professor turned LLM research engineer. Author of \"Build a Large Language Model From Scratch\" (https://t.co/O8LAAMRzzW).",
+    "id": "865622395"
+  },
+  {
+    "username": "TensorFlow",
+    "url": "https://twitter.com/TensorFlow",
+    "name": "TensorFlow",
+    "description": "TensorFlow is a fast, flexible, and scalable open-source machine learning library for research and production.",
+    "id": "254107028"
+  },
+  {
+    "username": "kaggle",
+    "url": "https://twitter.com/kaggle",
+    "name": "Kaggle",
+    "description": "The world's largest community of data scientists. Join us to compete, collaborate, learn, and share your work.",
+    "id": "80422885"
+  },
+  {
+    "username": "DeepLearningAI",
+    "url": "https://twitter.com/DeepLearningAI",
+    "name": "DeepLearning.AI",
+    "description": "We are an education technology company with the mission to grow and connect the global AI community.",
+    "id": "992153930095251456"
+  },
+  {
+    "username": "kdnuggets",
+    "url": "https://twitter.com/kdnuggets",
+    "name": "KDnuggets",
+    "description": "Data Science \u2022 Machine Learning \u2022 AI \u2022 Analytics \u2022 Founded by Gregory Piatetsky-Shapiro \u2022 Edited by @mattmayo13 \u2022 KD stands for Knowledge Discovery",
+    "id": "20167623"
+  },
+  {
+    "username": "bigdataconf",
+    "url": "https://twitter.com/bigdataconf",
+    "name": "Penning Powerful Prompts - Free Webinar on July 30",
+    "description": "Learn prompt engineering & Agentic AI to craft better prompts and turn your LLM into a powerful collaborator.",
+    "id": "969542076"
+  },
+  {
+    "username": "TeachTheMachine",
+    "url": "https://twitter.com/TeachTheMachine",
+    "name": "Machine Learning Mastery",
+    "description": "Making Developers Awesome At Machine Learning",
+    "id": "2197265034"
+  },
+  {
+    "username": "TechCrunch",
+    "url": "https://twitter.com/TechCrunch",
+    "name": "TechCrunch",
+    "description": "Technology news and analysis with a focus on founders and startup teams. Got a tip? https://t.co/J0WxnZxSRY",
+    "id": "816653"
+  },
+  {
+    "username": "clcoding",
+    "url": "https://twitter.com/clcoding",
+    "name": "Python Coding",
+    "description": "\ud83d\ude80 Learn #Python the fun way! \ud83d\udccc Daily tips, tutorials & projects | Educator | AI Community Partner \ud83d\udd17 Free Course https://t.co/l9NKxZWrh7",
+    "id": "1322566336367636482"
+  },
+  {
+    "username": "freeCodeCamp",
+    "url": "https://twitter.com/freeCodeCamp",
+    "name": "freeCodeCamp.org",
+    "description": "We're a community of millions of people who are building new skills and getting new jobs together. A 501(c)(3) public charity. Tweets by @abbeyrenn.",
+    "id": "1668100142"
+  }
+]
