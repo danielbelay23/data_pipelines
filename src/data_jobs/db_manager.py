@@ -15,13 +15,13 @@ def download_from_gcs(source_blob_name, destination_file_name):
         bucket = storage_client.bucket(GCS_BUCKET_NAME)
         blob = bucket.blob(source_blob_name)
         blob.download_to_filename(destination_file_name)
-        print(f"Successfully downloaded gs://{GCS_BUCKET_NAME}/{source_blob_name} to {destination_file_name}")
+        print(f"successfully downloaded gs://{GCS_BUCKET_NAME}/{source_blob_name} to {destination_file_name}")
         return True
     except NotFound:
-        print(f"Error: File not found in GCS: gs://{GCS_BUCKET_NAME}/{source_blob_name}")
+        print(f"file not found in GCS: gs://{GCS_BUCKET_NAME}/{source_blob_name}")
         return False
     except Exception as e:
-        print(f"An error occurred during GCS download: {e}")
+        print(f"error occurred during GCS download: {e}")
         return False
 
 def load_db_to_bigquery(db_path, table_name, dataset_id):
