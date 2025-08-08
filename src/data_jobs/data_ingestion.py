@@ -27,6 +27,19 @@ session_log = {
     'attempts': 0
 }
 
+
+def _atomic_write_json(path: str, data) -> None:
+    """Write JSON atomically by writing to a temp file then replacing."""
+    directory = os.path.dirname(path)
+    os.makedirs(directory, exist_ok=True)
+    tmp_path = f"{path}.tmp"
+    with open(tmp_path, 'w') as f:
+        json.dump(data, f, indent=2)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp_path, path)
+
+
 def handle_errors(default_return=None, function_name=None):
     """Decorator to handle common Twitter API errors"""
     def decorator(func):
@@ -57,6 +70,7 @@ def handle_errors(default_return=None, function_name=None):
         return wrapper
     return decorator
 
+
 @handle_errors(default_return=[])
 async def log_session_data(status, additional_data=None):
     """Log session data to logging.json"""
@@ -83,8 +97,7 @@ async def log_session_data(status, additional_data=None):
     except (FileNotFoundError, json.JSONDecodeError):
         logs = []
     logs.append(log_entry)
-    with open(LOGGING_FILE, 'w') as f:
-        json.dump(logs, f, indent=2)
+    _atomic_write_json(LOGGING_FILE, logs)
 
 
 async def log_errors(error_type, error_message, function_name):
@@ -109,7 +122,14 @@ def get_last_following_run():
                 log_entry.get('following_collected', 0) > 0):
                 timestamp_str = log_entry.get('timestamp')
                 if timestamp_str:
-                    return datetime.fromisoformat(timestamp_str)
+                    # Robust parse for potential timezone-naive timestamps
+                    try:
+                        ts = datetime.fromisoformat(timestamp_str)
+                    except Exception:
+                        return None
+                    if ts.tzinfo is None:
+                        ts = pytz.timezone('US/Central').localize(ts)
+                    return ts
 
         return None
     except (FileNotFoundError, json.JSONDecodeError, KeyError):
@@ -130,8 +150,8 @@ def should_run_following():
     cst = pytz.timezone('US/Central')
     current_time = datetime.now(cst)
     if last_run.tzinfo is None:
-        last_run = pytz.utc.localize(last_run).astimezone(cst)
-    elif last_run.tzinfo != cst:
+        last_run = cst.localize(last_run)
+    else:
         last_run = last_run.astimezone(cst)
 
     hours_since = (current_time - last_run).total_seconds() / 3600
@@ -142,6 +162,7 @@ def should_run_following():
         probability = (hours_since - 72) / 96
         return random.random() < probability
     return False
+
 
 def extract_media_info(tweet):
     """Extract comprehensive media information from a tweet"""
@@ -159,6 +180,7 @@ def extract_media_info(tweet):
             }
             media_info.append(media_data)
     return media_info
+
 
 async def ensure_authenticated():
     """Ensure client is authenticated, using cookies or fresh login"""
@@ -196,6 +218,7 @@ async def ensure_authenticated():
         await log_errors('login_failed', str(e), 'ensure_authenticated')
         raise
 
+
 async def get_my_user_id():
     """Gets the current user's ID, caching it to avoid repeated API calls."""
     try:
@@ -210,10 +233,10 @@ async def get_my_user_id():
     me = await client.get_user_by_screen_name(USERNAME)
     session_log['calls'] += 1
     if me:
-        with open(CONFIG_FILE, 'w') as f:
-            json.dump({'user_id': me.id}, f)
+        _atomic_write_json(CONFIG_FILE, {'user_id': me.id})
         return me.id
     return None
+
 
 @handle_errors(default_return=[])
 async def get_my_following():
@@ -285,8 +308,7 @@ async def get_my_following():
             continue
 
     all_data = existing_data + new_following
-    with open(FOLLOWING_FILE, 'w') as f:
-        json.dump(all_data, f, indent=2)
+    _atomic_write_json(FOLLOWING_FILE, all_data)
 
     session_log['new_following_count'] = len(new_following)
     print(f"added {len(new_following)} new followings. total following: {len(all_data)}")
@@ -364,8 +386,7 @@ async def get_my_feed():
             session_log['tweets_collected'] = len(all_tweets)
             print(f"pulled {len(batch_tweets)} new tweets. total tweets: {len(all_tweets)}/{target_tweets}")
             existing_data[current_date].extend(batch_tweets)
-            with open(TWEETS_FILE, 'w') as f:
-                json.dump(existing_data, f, indent=2)
+            _atomic_write_json(TWEETS_FILE, existing_data)
 
             # check for next page
             if not (hasattr(timeline, 'next_cursor') and timeline.next_cursor):
@@ -409,6 +430,7 @@ async def get_my_feed():
 
     return all_tweets
 
+
 @handle_errors(default_return=None)
 async def main_runner():
     cst = pytz.timezone('US/Central')
@@ -443,6 +465,7 @@ async def main_runner():
         'success': True
     })
     print(f"session {session_log['session_id']} successful, added to logging.json")
+
 
 if __name__ == "__main__":
     asyncio.run(main_runner())

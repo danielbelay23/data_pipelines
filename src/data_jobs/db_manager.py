@@ -9,6 +9,15 @@ from data_jobs import GCP_PROJECT_ID, GCS_BUCKET_NAME, BIGQUERY_DATASET_ID
 storage_client = storage.Client(project=GCP_PROJECT_ID)
 bq_client = bigquery.Client(project=GCP_PROJECT_ID)
 
+
+def quote_identifier(identifier: str) -> str:
+    """Safely quote SQLite identifiers (table/column names)."""
+    if not isinstance(identifier, str):
+        raise ValueError("Identifier must be a string")
+    # Double any embedded double quotes per SQL standard and wrap with quotes
+    return '"' + identifier.replace('"', '""') + '"'
+
+
 def download_from_gcs(source_blob_name, destination_file_name):
     """downloads a file from GCS to a local path."""
     try:
@@ -24,18 +33,19 @@ def download_from_gcs(source_blob_name, destination_file_name):
         print(f"error occurred during GCS download: {e}")
         return False
 
+
 def load_db_to_bigquery(db_path, table_name, dataset_id):
     """loads data from a SQLite database table into a BigQuery table."""
     print(f"starting BQ load for '{table_name}' from '{db_path}'")
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-    cursor.execute(f"SELECT * FROM {table_name}")
+    cursor.execute(f"SELECT * FROM {quote_identifier(table_name)}")
     rows = cursor.fetchall()
     if not rows:
         print(f"no data found in SQLite table '{table_name}'. skipping BQ load")
         return
 
-    cursor.execute(f"PRAGMA table_info({table_name})")
+    cursor.execute(f"PRAGMA table_info({quote_identifier(table_name)})")
     db_schema = cursor.fetchall()
     bq_schema = [bigquery.SchemaField(col[1], 'STRING') for col in db_schema]
     column_names = [col[1] for col in db_schema]
@@ -76,18 +86,20 @@ def create_connection(db_file):
         print(e)
     return conn
 
+
 def create_table(conn, table_name, primary_key):
     """create a table with a primary key if it doesn't exist."""
     try:
         c = conn.cursor()
         c.execute(f'''
-            CREATE TABLE IF NOT EXISTS {table_name} (
-                {primary_key} TEXT PRIMARY KEY
+            CREATE TABLE IF NOT EXISTS {quote_identifier(table_name)} (
+                {quote_identifier(primary_key)} TEXT PRIMARY KEY
             )
         ''')
         print(f"table '{table_name}' loaded successfully")
     except sqlite3.Error as e:
         print(f"error creating table {table_name}: {e}")
+
 
 def get_all_records_from_json(json_file):
     """
@@ -116,6 +128,7 @@ def get_all_records_from_json(json_file):
         print(f"error reading or parsing json file '{json_file}': {e}")
         return []
 
+
 def sync_schema(conn, table_name, all_records, primary_key, static_pk_value=None):
     """
     checks for new keys in the records and adds them as new columns
@@ -133,7 +146,7 @@ def sync_schema(conn, table_name, all_records, primary_key, static_pk_value=None
     if static_pk_value:
         json_keys.add(primary_key)
 
-    c.execute(f"PRAGMA table_info({table_name})")
+    c.execute(f"PRAGMA table_info({quote_identifier(table_name)})")
     db_columns = {row[1] for row in c.fetchall()}
     new_columns = json_keys - db_columns
 
@@ -141,13 +154,14 @@ def sync_schema(conn, table_name, all_records, primary_key, static_pk_value=None
         print(f"new fields found for '{table_name}': {', '.join(new_columns)}. syncing schema...")
         for column in new_columns:
             try:
-                c.execute(f'ALTER TABLE {table_name} ADD COLUMN {column} TEXT')
+                c.execute(f'ALTER TABLE {quote_identifier(table_name)} ADD COLUMN {quote_identifier(column)} TEXT')
                 print(f" -> added column '{column}' to the '{table_name}' table.")
             except sqlite3.Error as e:
                 print(f"error adding column {column} to {table_name}: {e}")
         conn.commit()
     else:
         print(f"schema for '{table_name}' is already up-to-date.")
+
 
 def ingest_data(conn, table_name, all_records, primary_key, static_pk_value=None):
     """read data from a list of records and insert or update them in the specified table."""
@@ -175,16 +189,16 @@ def ingest_data(conn, table_name, all_records, primary_key, static_pk_value=None
             print(f"record was skipped bc pk is missing. pk:'{primary_key}', record: {sanitized_record}")
             continue
 
-        c.execute(f"SELECT {primary_key} FROM {table_name} WHERE {primary_key} = ?", (pk_value,))
+        c.execute(f"SELECT {quote_identifier(primary_key)} FROM {quote_identifier(table_name)} WHERE {quote_identifier(primary_key)} = ?", (pk_value,))
         result = c.fetchone()
 
-        columns = ', '.join(sanitized_record.keys())
-        placeholders = ', '.join('?' * len(sanitized_record))
+        columns_quoted = ', '.join(quote_identifier(k) for k in sanitized_record.keys())
+        placeholders = ', '.join(['?'] * len(sanitized_record))
         values = list(sanitized_record.values())
 
         if result is None:
             try:
-                c.execute(f"INSERT INTO {table_name} ({columns}) VALUES ({placeholders})", values)
+                c.execute(f"INSERT INTO {quote_identifier(table_name)} ({columns_quoted}) VALUES ({placeholders})", values)
                 new_count += 1
             except sqlite3.Error as e:
                 print(f"error inserting record {pk_value} into {table_name}: {e}")
@@ -192,11 +206,11 @@ def ingest_data(conn, table_name, all_records, primary_key, static_pk_value=None
             update_keys = [k for k in sanitized_record.keys() if k != primary_key]
             if not update_keys:
                 continue
-            update_clause = ', '.join([f"{key} = ?" for key in update_keys])
+            update_clause = ', '.join([f"{quote_identifier(key)} = ?" for key in update_keys])
             update_values = [sanitized_record[k] for k in update_keys] + [pk_value]
 
             try:
-                c.execute(f"UPDATE {table_name} SET {update_clause} WHERE {primary_key} = ?", update_values)
+                c.execute(f"UPDATE {quote_identifier(table_name)} SET {update_clause} WHERE {quote_identifier(primary_key)} = ?", update_values)
                 if c.rowcount > 0:
                     updated_count += 1
             except sqlite3.Error as e:
